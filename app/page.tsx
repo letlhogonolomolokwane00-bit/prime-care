@@ -1,3 +1,7 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+
 const services = [
   {
     title: "Home Cleaning",
@@ -62,6 +66,8 @@ const trust = [
 ];
 
 export default function Home() {
+  const router = useRouter();
+
   return (
     <div className="bg-[var(--background)] text-[var(--foreground)]">
       <div className="relative overflow-hidden">
@@ -93,7 +99,10 @@ export default function Home() {
             <a className="hover:text-[var(--prime-copper)]" href="#trust">
               Trust & Safety
             </a>
-            <button className="rounded-full border border-[var(--prime-ink)] px-5 py-2 text-sm transition hover:border-transparent hover:bg-[var(--prime-ink)] hover:text-white">
+            <button
+              onClick={() => router.push("/provider/apply")}
+              className="rounded-full border border-[var(--prime-ink)] px-5 py-2 text-sm transition hover:border-transparent hover:bg-[var(--prime-ink)] hover:text-white"
+            >
               Join as provider
             </button>
           </nav>
@@ -114,10 +123,16 @@ export default function Home() {
               seamless booking flow built for modern households.
             </p>
             <div className="flex flex-col gap-4 sm:flex-row">
-              <button className="rounded-full bg-[var(--prime-forest)] px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[var(--prime-ink)]">
+              <button
+                onClick={() => router.push("/book")}
+                className="rounded-full bg-[var(--prime-forest)] px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[var(--prime-ink)]"
+              >
                 Book a service
               </button>
-              <button className="rounded-full border border-[var(--prime-forest)] px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--prime-forest)] transition hover:bg-[var(--prime-forest)] hover:text-white">
+              <button
+                onClick={() => router.push("/services")}
+                className="rounded-full border border-[var(--prime-forest)] px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--prime-forest)] transition hover:bg-[var(--prime-forest)] hover:text-white"
+              >
                 Explore services
               </button>
             </div>
@@ -226,7 +241,14 @@ export default function Home() {
               <p className="mt-2 text-sm text-[color:rgba(20,21,22,0.7)]">
                 {service.description}
               </p>
-              <button className="mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--prime-copper)]">
+              <button
+                onClick={() =>
+                  router.push(
+                    `/providers?service=${encodeURIComponent(service.title)}`
+                  )
+                }
+                className="mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--prime-copper)]"
+              >
                 View providers
               </button>
             </div>
@@ -353,10 +375,16 @@ export default function Home() {
             professional service. Launching in more cities every week.
           </p>
           <div className="flex flex-col gap-4 sm:flex-row">
-            <button className="rounded-full bg-white px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--prime-forest)]">
+            <button
+              onClick={() => router.push("/auth/sign-up")}
+              className="rounded-full bg-white px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--prime-forest)]"
+            >
               Get started
             </button>
-            <button className="rounded-full border border-white/60 px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-white hover:text-[var(--prime-forest)]">
+            <button
+              onClick={() => router.push("/provider/apply")}
+              className="rounded-full border border-white/60 px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-white hover:text-[var(--prime-forest)]"
+            >
               Become a provider
             </button>
           </div>
