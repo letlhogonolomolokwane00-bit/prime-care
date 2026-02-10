@@ -35,11 +35,11 @@ export default function BookPage() {
 
   const nextStep = () => {
     if (!canContinue) return;
-    setStep((prev) => Math.min(4, (prev + 1) as Step));
+    setStep((prev) => Math.min(4, prev + 1) as Step);
   };
 
   const prevStep = () => {
-    setStep((prev) => Math.max(1, (prev - 1) as Step));
+    setStep((prev) => Math.max(1, prev - 1) as Step);
   };
 
   return (
