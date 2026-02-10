@@ -100,7 +100,7 @@ export default function Home() {
               Trust & Safety
             </a>
             <button
-              onClick={() => router.push("/provider/apply")}
+              onClick={() => router.push("/provider/auth")}
               className="rounded-full border border-[var(--prime-ink)] px-5 py-2 text-sm transition hover:border-transparent hover:bg-[var(--prime-ink)] hover:text-white"
             >
               Join as provider
@@ -382,7 +382,7 @@ export default function Home() {
               Get started
             </button>
             <button
-              onClick={() => router.push("/provider/apply")}
+              onClick={() => router.push("/provider/auth")}
               className="rounded-full border border-white/60 px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-white hover:text-[var(--prime-forest)]"
             >
               Become a provider

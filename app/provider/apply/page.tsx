@@ -1,6 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 
 const highlights = [
   {
@@ -41,6 +45,22 @@ const requirements = [
 
 export default function ProviderApplyPage() {
   const router = useRouter();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        router.replace("/provider/sign-up");
+        return;
+      }
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const role = userDoc.exists() ? userDoc.data().role : null;
+      if (role !== "provider") {
+        router.replace("/provider/sign-up");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--prime-ink)]">
