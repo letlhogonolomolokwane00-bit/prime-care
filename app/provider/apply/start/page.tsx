@@ -186,7 +186,7 @@ export default function ProviderApplyStartPage() {
                 name="phone"
                 type="tel"
                 inputMode="numeric"
-                pattern="[0-9+\\s-]*"
+                pattern="[0-9+ -]*"
                 placeholder="+1 (555) 123-4567"
                 aria-invalid={Boolean(fieldErrors.phone)}
                 className="rounded-2xl border border-[var(--prime-sand)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[var(--prime-forest)] aria-[invalid=true]:border-red-400"
