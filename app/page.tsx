@@ -124,7 +124,7 @@ export default function Home() {
             </p>
             <div className="flex flex-col gap-4 sm:flex-row">
               <button
-                onClick={() => router.push("/book")}
+                onClick={() => router.push("/sign-in")}
                 className="rounded-full bg-[var(--prime-forest)] px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[var(--prime-ink)]"
               >
                 Book a service

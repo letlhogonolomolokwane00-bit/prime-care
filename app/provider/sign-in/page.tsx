@@ -4,11 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  GoogleAuthProvider,
   onAuthStateChanged,
   sendEmailVerification,
+  signInWithPopup,
   signInWithEmailAndPassword,
+  signOut,
+  type User,
 } from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
 type Status = "idle" | "loading" | "success" | "error";
@@ -18,38 +22,33 @@ export default function ProviderSignInPage() {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [verificationPending, setVerificationPending] = useState(false);
+  const [sessionUser, setSessionUser] = useState<User | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  const continueAsProvider = async (user: User) => {
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    const role = userDoc.exists() ? userDoc.data().role : null;
+    if (role !== "provider") {
+      setStatus("error");
+      setError("This account is not registered as a provider.");
+      return;
+    }
+    router.push("/provider/apply");
+  };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) return;
-      if (!user.emailVerified) {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setSessionUser(user);
+      setCheckingSession(false);
+      if (user && !user.emailVerified) {
         setVerificationPending(true);
-        return;
+      } else {
+        setVerificationPending(false);
       }
-
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (!userDoc.exists()) {
-        await setDoc(doc(db, "users", user.uid), {
-          uid: user.uid,
-          name: user.displayName || "Provider",
-          email: user.email || "",
-          role: "provider",
-          createdAt: serverTimestamp(),
-        });
-      }
-
-      const role = userDoc.exists() ? userDoc.data().role : "provider";
-      if (role !== "provider") {
-        setStatus("error");
-        setError("This account is not registered as a provider.");
-        return;
-      }
-
-      router.push("/provider/apply");
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -81,7 +80,7 @@ export default function ProviderSignInPage() {
       }
 
       setStatus("success");
-      router.push("/provider/apply");
+      await continueAsProvider(credential.user);
     } catch (err) {
       const message =
         err instanceof Error
@@ -89,6 +88,24 @@ export default function ProviderSignInPage() {
           : "Unable to sign in. Please try again.";
       setStatus("error");
       setError(message);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setStatus("loading");
+    setError(null);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const credential = await signInWithPopup(auth, provider);
+      await continueAsProvider(credential.user);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Google sign-in failed.";
+      setStatus("error");
+      setError(message);
+    } finally {
+      setStatus("idle");
     }
   };
 
@@ -108,7 +125,11 @@ export default function ProviderSignInPage() {
         </header>
 
         <div className="rounded-[32px] border border-white/70 bg-white/70 p-6 shadow-[0_18px_45px_rgba(15,42,34,0.12)]">
-          {verificationPending ? (
+          {checkingSession ? (
+            <p className="text-sm text-[color:rgba(20,21,22,0.7)]">
+              Checking session...
+            </p>
+          ) : sessionUser && verificationPending ? (
             <div className="space-y-5">
               <p className="text-sm text-[color:rgba(20,21,22,0.7)]">
                 Please verify your email address to continue. Check your inbox
@@ -126,7 +147,7 @@ export default function ProviderSignInPage() {
                   await auth.currentUser.reload();
                   if (auth.currentUser.emailVerified) {
                     setVerificationPending(false);
-                    router.push("/provider/apply");
+                    await continueAsProvider(auth.currentUser);
                   } else {
                     setError("Email not verified yet. Please try again.");
                   }
@@ -135,6 +156,37 @@ export default function ProviderSignInPage() {
               >
                 I've verified my email
               </button>
+            </div>
+          ) : sessionUser ? (
+            <div className="space-y-5">
+              <p className="text-sm text-[color:rgba(20,21,22,0.7)]">
+                You are signed in as <strong>{sessionUser.email}</strong>.
+              </p>
+              {error ? (
+                <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {error}
+                </p>
+              ) : null}
+              <div className="flex flex-col gap-4 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => continueAsProvider(sessionUser)}
+                  className="rounded-full bg-[var(--prime-forest)] px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[var(--prime-ink)]"
+                >
+                  Continue as provider
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await signOut(auth);
+                    setSessionUser(null);
+                    setError(null);
+                  }}
+                  className="rounded-full border border-[var(--prime-forest)] px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--prime-forest)] transition hover:bg-[var(--prime-forest)] hover:text-white"
+                >
+                  Switch account
+                </button>
+              </div>
             </div>
           ) : (
             <form className="space-y-5" onSubmit={handleSubmit}>
@@ -175,6 +227,14 @@ export default function ProviderSignInPage() {
                 className="w-full rounded-full bg-[var(--prime-forest)] px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[var(--prime-ink)] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {status === "loading" ? "Signing in..." : "Sign in"}
+              </button>
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={status === "loading"}
+                className="w-full rounded-full border border-[var(--prime-forest)] px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--prime-forest)] transition hover:bg-[var(--prime-forest)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                Continue with Google
               </button>
             </form>
           )}

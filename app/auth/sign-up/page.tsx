@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
+  GoogleAuthProvider,
   createUserWithEmailAndPassword,
   sendEmailVerification,
+  signInWithPopup,
   updateProfile,
 } from "firebase/auth";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
@@ -13,11 +16,13 @@ import { auth, db } from "@/lib/firebase";
 type Status = "idle" | "loading" | "success" | "error";
 
 export default function CustomerSignUpPage() {
+  const router = useRouter();
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [verificationSent, setVerificationSent] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -82,7 +87,7 @@ export default function CustomerSignUpPage() {
       });
 
       setStatus("success");
-      window.location.href = "/book";
+      router.push("/book");
     } catch (err) {
       const message =
         err instanceof Error
@@ -109,6 +114,37 @@ export default function CustomerSignUpPage() {
           ? err.message
           : "Unable to resend verification email.";
       setError(message);
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    setGoogleLoading(true);
+    setError(null);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const credential = await signInWithPopup(auth, provider);
+
+      await setDoc(
+        doc(db, "users", credential.user.uid),
+        {
+          uid: credential.user.uid,
+          name: credential.user.displayName || "Customer",
+          email: credential.user.email || "",
+          role: "customer",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      router.push("/book");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Google sign-up failed.";
+      setError(message);
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -205,6 +241,21 @@ export default function CustomerSignUpPage() {
                 {status === "loading"
                   ? "Creating account..."
                   : "Create account"}
+              </button>
+              <div className="flex items-center gap-3 py-1">
+                <span className="h-px flex-1 bg-[var(--prime-sand)]" />
+                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:rgba(20,21,22,0.55)]">
+                  Or
+                </span>
+                <span className="h-px flex-1 bg-[var(--prime-sand)]" />
+              </div>
+              <button
+                type="button"
+                onClick={handleGoogleSignUp}
+                disabled={googleLoading}
+                className="w-full rounded-full border border-[var(--prime-forest)] px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--prime-forest)] transition hover:bg-[var(--prime-forest)] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {googleLoading ? "Connecting..." : "Continue with Google"}
               </button>
             </form>
           )}
