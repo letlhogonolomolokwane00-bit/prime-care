@@ -6,71 +6,41 @@ import { useRouter } from "next/navigation";
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
-  sendEmailVerification,
-  signInWithPopup,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   type User,
 } from "firebase/auth";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-} from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
 type Status = "idle" | "loading" | "success" | "error";
 
-export default function ProviderSignInPage() {
+export default function AdminSignInPage() {
   const router = useRouter();
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [verificationPending, setVerificationPending] = useState(false);
   const [sessionUser, setSessionUser] = useState<User | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
 
-  const hasApprovedApplication = async (providerUid: string) => {
-    const applicationsQuery = query(
-      collection(db, "providerApplications"),
-      where("providerUid", "==", providerUid)
-    );
-    const snapshot = await getDocs(applicationsQuery);
-    return snapshot.docs.some((applicationDoc) => {
-      const data = applicationDoc.data();
-      return data.status === "approved";
-    });
-  };
-
-  const continueAsProvider = async (user: User) => {
+  const continueAsAdmin = async (user: User) => {
     const userDoc = await getDoc(doc(db, "users", user.uid));
     const role = userDoc.exists() ? userDoc.data().role : null;
-    if (role !== "provider") {
+
+    if (role !== "admin") {
       setStatus("error");
-      setError("This account is not registered as a provider.");
+      setError("This account is not registered as an admin.");
       return;
     }
-    const approved = await hasApprovedApplication(user.uid);
-    if (approved) {
-      router.push("/provider/dashboard");
-      return;
-    }
-    router.push("/provider/application");
+
+    router.push("/admin");
   };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setSessionUser(user);
       setCheckingSession(false);
-      if (user && !user.emailVerified) {
-        setVerificationPending(true);
-      } else {
-        setVerificationPending(false);
-      }
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -90,21 +60,9 @@ export default function ProviderSignInPage() {
     }
 
     try {
-      const credential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      if (!credential.user.emailVerified) {
-        await sendEmailVerification(credential.user);
-        setVerificationPending(true);
-        setStatus("error");
-        setError("Please verify your email to continue.");
-        return;
-      }
-
+      const credential = await signInWithEmailAndPassword(auth, email, password);
       setStatus("success");
-      await continueAsProvider(credential.user);
+      await continueAsAdmin(credential.user);
     } catch (err) {
       const message =
         err instanceof Error
@@ -118,11 +76,12 @@ export default function ProviderSignInPage() {
   const handleGoogleSignIn = async () => {
     setStatus("loading");
     setError(null);
+
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
       const credential = await signInWithPopup(auth, provider);
-      await continueAsProvider(credential.user);
+      await continueAsAdmin(credential.user);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Google sign-in failed.";
@@ -138,13 +97,13 @@ export default function ProviderSignInPage() {
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-10 px-6 py-16">
         <header className="space-y-3">
           <p className="text-xs uppercase tracking-[0.3em] text-[var(--prime-copper)]">
-            Provider sign in
+            Admin sign in
           </p>
           <h1 className="font-serif text-3xl sm:text-4xl">
-            Welcome back, provider.
+            Access Prime Care admin dashboard.
           </h1>
           <p className="max-w-xl text-sm text-[color:rgba(20,21,22,0.7)]">
-            Sign in to continue your provider onboarding.
+            Sign in with an admin account to review provider applications.
           </p>
         </header>
 
@@ -153,62 +112,6 @@ export default function ProviderSignInPage() {
             <p className="text-sm text-[color:rgba(20,21,22,0.7)]">
               Checking session...
             </p>
-          ) : sessionUser && verificationPending ? (
-            <div className="space-y-5">
-              <p className="text-sm text-[color:rgba(20,21,22,0.7)]">
-                Please verify your email address to continue. Check your inbox
-                for the verification link.
-              </p>
-              <p className="text-sm text-[color:rgba(20,21,22,0.7)]">
-                Signed in as <strong>{sessionUser.email}</strong>
-              </p>
-              {error ? (
-                <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {error}
-                </p>
-              ) : null}
-              <div className="flex flex-col gap-4 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!auth.currentUser) return;
-                    await auth.currentUser.reload();
-                    if (auth.currentUser.emailVerified) {
-                      setVerificationPending(false);
-                      await continueAsProvider(auth.currentUser);
-                    } else {
-                      setError("Email not verified yet. Please try again.");
-                    }
-                  }}
-                  className="rounded-full bg-[var(--prime-forest)] px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[var(--prime-ink)]"
-                >
-                  I have verified my email
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!auth.currentUser) return;
-                    await sendEmailVerification(auth.currentUser);
-                    setError("Verification email resent. Check your inbox.");
-                  }}
-                  className="rounded-full border border-[var(--prime-forest)] px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--prime-forest)] transition hover:bg-[var(--prime-forest)] hover:text-white"
-                >
-                  Resend email
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await signOut(auth);
-                    setSessionUser(null);
-                    setVerificationPending(false);
-                    setError(null);
-                  }}
-                  className="rounded-full border border-[var(--prime-copper)] px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--prime-copper)] transition hover:bg-[var(--prime-copper)] hover:text-white"
-                >
-                  Switch account
-                </button>
-              </div>
-            </div>
           ) : sessionUser ? (
             <div className="space-y-5">
               <p className="text-sm text-[color:rgba(20,21,22,0.7)]">
@@ -222,10 +125,10 @@ export default function ProviderSignInPage() {
               <div className="flex flex-col gap-4 sm:flex-row">
                 <button
                   type="button"
-                  onClick={() => continueAsProvider(sessionUser)}
+                  onClick={() => continueAsAdmin(sessionUser)}
                   className="rounded-full bg-[var(--prime-forest)] px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[var(--prime-ink)]"
                 >
-                  Continue as provider
+                  Continue to dashboard
                 </button>
                 <button
                   type="button"
@@ -247,7 +150,7 @@ export default function ProviderSignInPage() {
                 <input
                   name="email"
                   type="email"
-                  placeholder="you@domain.com"
+                  placeholder="admin@primecare.com"
                   className="rounded-2xl border border-[var(--prime-sand)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[var(--prime-forest)]"
                 />
               </label>
@@ -264,12 +167,6 @@ export default function ProviderSignInPage() {
               {error ? (
                 <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {error}
-                </p>
-              ) : null}
-
-              {status === "success" ? (
-                <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                  Signed in successfully.
                 </p>
               ) : null}
 
@@ -294,14 +191,8 @@ export default function ProviderSignInPage() {
 
         <div className="flex flex-wrap items-center gap-4 text-sm">
           <Link
-            href="/provider/sign-up"
-            className="font-semibold uppercase tracking-[0.2em] text-[var(--prime-copper)]"
-          >
-            Create provider account
-          </Link>
-          <Link
             href="/"
-            className="font-semibold uppercase tracking-[0.2em] text-[var(--prime-ink)]"
+            className="font-semibold uppercase tracking-[0.2em] text-[var(--prime-copper)]"
           >
             Back to home
           </Link>

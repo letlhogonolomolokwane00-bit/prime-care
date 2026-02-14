@@ -38,9 +38,10 @@ const steps = [
 
 const requirements = [
   "Government-issued ID",
-  "Proof of experience or certifications",
-  "Background check consent",
-  "Reliable transportation (when needed)",
+  "Selfie photo",
+  "Proof of address",
+  "Signed consent form",
+  "Certifications (if relevant)",
 ];
 
 export default function ProviderApplyPage() {
@@ -83,6 +84,12 @@ export default function ProviderApplyPage() {
               className="rounded-full bg-[var(--prime-forest)] px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[var(--prime-ink)]"
             >
               Start application
+            </button>
+            <button
+              onClick={() => router.push("/provider/application")}
+              className="rounded-full border border-[var(--prime-copper)] px-7 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--prime-copper)] transition hover:bg-[var(--prime-copper)] hover:text-white"
+            >
+              Application status
             </button>
             <button
               onClick={() => router.push("/")}
